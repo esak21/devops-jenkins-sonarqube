@@ -1,24 +1,42 @@
-//START-OF-SCRIPT
-node {
-    def SONARQUBE_HOSTNAME = 'localhost'
+node{
 
-    def GRADLE_HOME = tool name: 'gradle-4.10.2', type: 'hudson.plugins.gradle.GradleInstallation'
-    sh "${GRADLE_HOME}/bin/gradle tasks"
+    def server = Artifactory.server 'localhost'
 
-    stage('prep') {
-        git url: 'https://github.com/cloudacademy/devops-webapp.git'                
+    def rtGradle = Artifactory.newGradleBuild()
+    
+    withCredentials([usernamePassword(
+        credentialsId: 'artifactory',
+        usernameVariable: 'USERNAME', 
+        passwordVariable: 'PASSWORD'
+    )]) {
+        server.username = "${USERNAME}"
+        server.password = "${PASSWORD}"
     }
 
-    stage('build') {
-        sh "${GRADLE_HOME}/bin/gradle build"
+    def builfInfo
+
+    stage('clone'){
+        git url: 'https://github.com/cloudacademy/devops-webapp.git'
     }
 
-    stage('sonar-scanner') {
-      def sonarqubeScannerHome = tool name: 'sonar', type: 'hudson.plugins.sonar.SonarRunnerInstallation'
-      withCredentials([string(credentialsId: 'sonar', variable: 'sonarLogin')]) {
-        sh "${sonarqubeScannerHome}/bin/sonar-scanner -e -Dsonar.host.url=http://${SONARQUBE_HOSTNAME}:9000 -Dsonar.login=${sonarLogin} -Dsonar.projectName=WebApp -Dsonar.projectVersion=${env.BUILD_NUMBER} -Dsonar.projectKey=GS -Dsonar.sources=src/main/ -Dsonar.tests=src/test/ -Dsonar.java.binaries=build/**/* -Dsonar.language=java"
-      }
+    stage('Artifactory Config'){
+        rtGradle.tool = "gradle-4.10.2"
+        rtGradle.deployer repo:'gradle-release-local', server: server
+        rtGradle.reolver repo:'jcenter', server: server
+
     }
 
+    stage('build'){
+
+        rtGradle.run rootDir: "./", buildFile: 'build.gradle', tasks: 'clean build'
+
+    }
+
+    stage("publish"){
+        buildInfo = rtGradle.run rootDir: "./", buildFile: 'build.gradle', tasks: 'artifactoryPublish'
+    }
+
+    stage("deploy"){
+        server.publishBuildInfo buildInfo
+    }
 }
-//END-OF-SCRIPT

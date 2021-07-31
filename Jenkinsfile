@@ -22,7 +22,7 @@ node{
     stage('Artifactory Config'){
         rtGradle.tool = "gradle-4.10.2"
         rtGradle.deployer repo:'gradle-release-local', server: server
-        rtGradle.reolver repo:'jcenter', server: server
+        rtGradle.resolver repo:'jcenter', server: server
 
     }
 

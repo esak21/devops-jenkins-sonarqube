@@ -1,6 +1,6 @@
 node{
 
-    def server = Artifactory.server 'localhost'
+    def server = Artifactory.server 'artifactory'
 
     def rtGradle = Artifactory.newGradleBuild()
     
